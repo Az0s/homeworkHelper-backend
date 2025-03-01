@@ -1,0 +1,930 @@
+openapi: 3.0.0
+info:
+  title: Educational Platform API
+  description: API for an educational platform that connects students with teachers for coursework help and tutoring.
+  version: 1.0.0
+  
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Error message"
+    
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "jwt_token_string"
+    
+    UserInfo:
+      type: object
+      properties:
+        gender:
+          type: string
+          example: "male"
+        contactInfo:
+          type: string
+          example: "user@example.com"
+        enrollmentYear:
+          type: string
+          format: date-time
+          example: "2020-09-01T00:00:00.000Z"
+        college:
+          type: string
+          example: "Engineering"
+        major:
+          type: string
+          example: "Computer Science"
+        avatarUrl:
+          type: string
+          example: "/uploads/avatar.jpg"
+    
+    UserInfoUpdate:
+      type: object
+      properties:
+        gender:
+          type: string
+        contactInfo:
+          type: string
+        enrollmentYear:
+          type: string
+          format: date
+        college:
+          type: string
+        major:
+          type: string
+    
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+        - role
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [student, teacher]
+    
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    
+    AvatarResponse:
+      type: object
+      properties:
+        avatarUrl:
+          type: string
+          example: "/uploads/filename.jpg"
+    
+    ImageResponse:
+      type: object
+      properties:
+        imageUrl:
+          type: string
+          example: "/uploads/filename.jpg"
+    
+    CourseworkRequest:
+      type: object
+      required:
+        - imageUrls
+        - content
+        - subject
+        - priceRange
+        - deadline
+      properties:
+        imageUrls:
+          type: array
+          items:
+            type: string
+        content:
+          type: string
+        subject:
+          type: string
+        priceRange:
+          type: object
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+        deadline:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+    
+    CourseworkResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "coursework_id_string"
+    
+    CourseworkSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+        subject:
+          type: string
+        priceRange:
+          type: object
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+        deadline:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [pending, completed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    
+    CourseworkComplete:
+      type: object
+      required:
+        - imageUrls
+        - description
+      properties:
+        imageUrls:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+    
+    TutorialRequest:
+      type: object
+      required:
+        - school
+        - major
+        - course
+        - content
+      properties:
+        school:
+          type: string
+        major:
+          type: string
+        course:
+          type: string
+        content:
+          type: string
+    
+    TutorialSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+        school:
+          type: string
+        major:
+          type: string
+        course:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+          enum: [open, matched, completed]
+        arrangement:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    
+    TutorialAccept:
+      type: object
+      required:
+        - arrangement
+      properties:
+        arrangement:
+          type: string
+
+paths:
+  /account/register:
+    post:
+      summary: Register a new user account
+      tags:
+        - Account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad request - missing fields or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /account/login:
+    post:
+      summary: Authenticate user and get JWT token
+      tags:
+        - Account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad request - missing fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /account/info:
+    get:
+      summary: Get user information
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update user information
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInfoUpdate'
+      responses:
+        '200':
+          description: User information updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User information updated successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /account/avatar:
+    put:
+      summary: Update user avatar
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvatarResponse'
+        '400':
+          description: No file uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coursework/image:
+    post:
+      summary: Upload coursework image
+      tags:
+        - Coursework
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageResponse'
+        '400':
+          description: No file uploaded or invalid file type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coursework:
+    post:
+      summary: Create new coursework (student)
+      tags:
+        - Coursework
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseworkRequest'
+      responses:
+        '201':
+          description: Coursework created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseworkResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a student
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coursework/student:
+    get:
+      summary: Get coursework list (student)
+      tags:
+        - Coursework
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Retrieved coursework list successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourseworkSummary'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a student
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coursework/student/{id}:
+    get:
+      summary: Get coursework details (student)
+      tags:
+        - Coursework
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Retrieved coursework successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CourseworkSummary'
+                  - type: object
+                    properties:
+                      content:
+                        type: string
+                      imageUrls:
+                        type: array
+                        items:
+                          type: string
+                      solution:
+                        type: object
+                        properties:
+                          imageUrls:
+                            type: array
+                            items:
+                              type: string
+                          description:
+                            type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a student
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Coursework not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coursework/teacher:
+    get:
+      summary: Get coursework list (teacher)
+      tags:
+        - Coursework
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Retrieved coursework list successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourseworkSummary'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a teacher
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coursework/teacher/{id}:
+    get:
+      summary: Get coursework details (teacher)
+      tags:
+        - Coursework
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Retrieved coursework successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CourseworkSummary'
+                  - type: object
+                    properties:
+                      content:
+                        type: string
+                      imageUrls:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a teacher
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Coursework not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coursework/complete/{id}:
+    put:
+      summary: Complete coursework (teacher)
+      tags:
+        - Coursework
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseworkComplete'
+      responses:
+        '200':
+          description: Coursework completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Coursework completed successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a teacher
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Coursework not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tutorial:
+    post:
+      summary: Create tutorial request (student)
+      tags:
+        - Tutorial
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TutorialRequest'
+      responses:
+        '201':
+          description: Tutorial request created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tutorial request created successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a student
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tutorial/student:
+    get:
+      summary: Get tutorial requests (student)
+      tags:
+        - Tutorial
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Retrieved tutorial requests successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TutorialSummary'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a student
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tutorial/teacher:
+    get:
+      summary: Get matching tutorial requests (teacher)
+      tags:
+        - Tutorial
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Retrieved matching tutorial requests successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TutorialSummary'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a teacher
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tutorial/accept/{id}:
+    put:
+      summary: Accept tutorial request (teacher)
+      tags:
+        - Tutorial
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TutorialAccept'
+      responses:
+        '200':
+          description: Tutorial accepted successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TutorialSummary'
+        '400':
+          description: Tutorial request not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not a teacher
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tutorial not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
